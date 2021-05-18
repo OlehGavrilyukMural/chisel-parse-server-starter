@@ -1,0 +1,17 @@
+{
+  "color": "rgba(128, 128, 128, 1)",
+  "appearance": "Single Line",
+  "nameId": "tableColumnName",
+  "isDisabled": false,
+  "isList": false,
+  "isRequired": false,
+  "model": "modelObjReference",
+  "ACL": "user.ACL",
+  "name": "title",
+  "order": 0,
+  "isTitle": false,
+  "validations": "{}",
+  "type": "Short Text",
+  "isUnique": false,
+  "validValues": []
+}

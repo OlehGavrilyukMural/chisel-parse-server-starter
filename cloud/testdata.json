@@ -1,0 +1,10 @@
+{
+  "pollClass": {
+    "__type": "Object",
+    "className": "Outer"
+  },
+  "pollTutorialValues": {
+    "value": 100,
+    "value2": 200
+  }
+}

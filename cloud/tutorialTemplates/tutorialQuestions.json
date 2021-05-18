@@ -1,0 +1,36 @@
+{
+  "questionsClass": {
+    "__type": "Object",
+    "className": "Question"
+  },
+  "questionsDataArray": [
+    {
+      "text": "This is a simple question with 2 answers",
+      "answersArrayIndex": [0, 1]
+    },
+    {
+      "text": "This is a question with image and 2 simple answers",
+      "image": "./cat.png",
+      "answersArrayIndex": [0, 1]
+    },
+    {
+      "text": "This is a question with video and 2 simple answers",
+      "videoUrl": "https://www.youtube.com/watch?v=mhslj4-OSRM",
+      "answersArrayIndex": [0, 1]
+    },
+    {
+      "text": "This is a question with correct answer and wrong answer with image",
+      "videoUrl": "https://www.youtube.com/watch?v=mhslj4-OSRM",
+      "answersArrayIndex": [1, 2]
+    },
+    {
+      "text": "This is a question with multiple answers",
+      "multipleAnswers": true,
+      "answersArrayIndex": [0, 1, 4]
+    },
+    {
+      "text": "This is an open question example. Type in You answer in field below.",
+      "answersArrayIndex": [3]
+    }
+  ]
+}

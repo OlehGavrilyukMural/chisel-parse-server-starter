@@ -1,0 +1,20 @@
+{
+  "questionsClass": {
+    "__type": "Object",
+    "className": "Poll"
+  },
+  "pollsDataArray": [
+    {
+      "pollName": "This is the short name of Poll. It must be unique.",
+      "pollTitle": "This is a Poll title",
+      "description": "This is a Poll description",
+      "intro": "Welcome! This is an intro text to a Poll",
+      "introBackgroundImage": "./cat.png",
+      "questionsBackgroundImage": "./cat.png",
+      "endScoreMessage": "Congratulations! This is example of poll end message with scores. Poll can also be set to not count and display points at the end",
+      "endBackgroundImage": "./cat.png",
+      "scoredPoll": true,
+      "questionsArrayIndex": [0, 1, 2, 3, 4, 5]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "answersDataArray": [
+    {
+      "text": "This is a simple wrong answer with no points"
+    },
+    {
+      "text": "This is the right answer with 10 points",
+      "points": 10,
+      "isCorrect": true
+    },
+    {
+      "text": "This wrong answer has an image",
+      "image": "./cat.png"
+    },
+    {
+      "text": "Please type You answer",
+      "userInputAnswer": true
+    },
+    {
+      "text": "This is the right answer with 20 points",
+      "points": 20,
+      "isCorrect": true
+    }
+  ]
+}

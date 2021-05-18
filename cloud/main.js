@@ -1,9 +1,9 @@
 console.log('Cloud code connected');
+import('./polls.js');
 
 const {config, SITE, ROLE_ADMIN, ROLE_EDITOR, promisifyW, getAllObjects} = require('./common');
 
 const {getPayPlan} = require('./payment');
-
 
 const checkRights = (user, obj) => {
   const acl = obj.getACL();
