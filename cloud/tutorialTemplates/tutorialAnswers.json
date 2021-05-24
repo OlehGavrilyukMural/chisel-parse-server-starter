@@ -1,5 +1,4 @@
-{
-  "answersDataArray": [
+[
     {
       "text": "This is a simple wrong answer with no points"
     },
@@ -9,7 +8,9 @@
       "isCorrect": true
     },
     {
-      "text": "This wrong answer has an image"
+      "text": "This wrong answer has an image",
+      "image": "tutorialTemplates/cat.png",
+      "imageName": "AnswerCatPhoto"
     },
     {
       "text": "Please type You answer",
@@ -20,5 +21,4 @@
       "points": 20,
       "isCorrect": true
     }
-  ]
-}
+]

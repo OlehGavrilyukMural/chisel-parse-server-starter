@@ -1,11 +1,5 @@
-const pollsTemplateJson = require('./testdata.json');
-
-const tutorialAnswersData = require('./tutorialTemplates/tutorialAnswers.json');
-const tutorialPollsData = require('./tutorialTemplates/tutorialPolls.json');
-const tutorialQuestionsData = require('./tutorialTemplates/tutorialQuestions.json');
-const modelFieldModelData = require('./models/modelFieldModel.json');
-const answerModelFieldData = require('./models/answerModelFieldModel.json');
-const { ACL } = require('parse');
+const fs = require('fs');
+const path = require('path');
 
 const getStatusResponseObj = (statusCode, statusMessage) => {
   return { 
@@ -18,7 +12,7 @@ const verifyObjectExists = async (className, columnName, fieldValue) => {
   return await (new Parse.Query(
     Parse.Object.extend(className)))
     .equalTo(columnName, fieldValue)
-    .first();
+    .first({ useMasterKey: true });
 };
 
 const getCustomParseObject = (className) => {
@@ -28,13 +22,12 @@ const getCustomParseObject = (className) => {
       "className": className,
     });
 }
-const fillParseTable = async (dataArr, className, requiredAttr, mergeAttr) => {
+const fillParseTable = async (dataArr, className, mergeAttr) => {
   const result = [];
   for (const item of dataArr) {
     const parseObj = getCustomParseObject(className);
     parseObj.set(item);
     if (mergeAttr) parseObj.set(mergeAttr);
-    if (requiredAttr) parseObj.set(requiredAttr);
     result.push(parseObj);
   }
   await Parse.Object.saveAll(result);
@@ -85,6 +78,20 @@ Parse.Cloud.define("registerUser", async (request) => {
 });
 
 Parse.Cloud.define("finishCreation", async (request) => {
+
+  //Here is a strange situation with caching. 
+  //If required objects are updated, the updates are stored between sessions.
+  //I am not aware of the mechanism behind this behaviour.
+  //This ugly lines should be rafactored as soon as such behaviour is clarified.
+  const tutorialPollsData = JSON.parse(JSON.stringify(require('./tutorialTemplates/tutorialPolls.json')));
+  const pollModelFieldData = JSON.parse(JSON.stringify(require('./models/pollModelFieldModel.json')));
+  
+  const tutorialQuestionsData = JSON.parse(JSON.stringify(require('./tutorialTemplates/tutorialQuestions.json')));
+  const questionModelFieldData = JSON.parse(JSON.stringify(require('./models/questionModelFieldModel.json')));
+  
+  const tutorialAnswersData = JSON.parse(JSON.stringify(require('./tutorialTemplates/tutorialAnswers.json')));
+  const answerModelFieldData = JSON.parse(JSON.stringify(require('./models/answerModelFieldModel.json')));
+
   const { email, password } = request.params;
   //TODO - return this line when not testing
   //if ((await getUserEmailStatus(email)).status != 200) return getStatusResponseObj(400, "Email missing or was not confirmed");
@@ -105,31 +112,72 @@ Parse.Cloud.define("finishCreation", async (request) => {
   let siteObj = await buildSiteTableObj(tablesUniquePartName, "MyPolls", user)
   await siteObj.save(null, { "useMasterKey": true });
 
-  //adding answer model obj to models table
-  let answerModelTableObj = buildModelTableObj("Answer", siteObj, user, `${tablesFirstPartName}_Answer_${tablesUniquePartName}`);
-  await answerModelTableObj.save(null, { "useMasterKey": true });
-
-  //adding answer obj fields to ModelField table
-  const answerObjsModelField = await fillParseTable(answerModelFieldData, "ModelField", { model: answerModelTableObj.toPointer() }, {  ACL: new Parse.ACL(user) });
-  
-  //adding user's Answer table;
-  const publicReadUserWriteACL = user.getACL();
-  publicReadUserWriteACL.setPublicReadAccess(true);
-  const tutorialAnswers = await fillParseTable(tutorialAnswersData["answersDataArray"], `${tablesFirstPartName}_Answer_${tablesUniquePartName}`, null, { "ACL": publicReadUserWriteACL });
-  
-  //adding question obj
-
-  //adding poll obj
-
-  //add ModelField data
+  //add poll and then question with id of poll, etc.
+  //TODO refactor this tree monstrous method calls
+  const filledAnswerTutorial = await fillClassTables("Answer", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialAnswersData, answerModelFieldData);
+  const filledQuestionTutorial = await fillClassTables("Question", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialQuestionsData, questionModelFieldData);
+  const filledPollTutorial = await fillClassTables("Poll", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialPollsData, pollModelFieldData);
 
   //TODO apply CPL to new table https://docs.parseplatform.org/js/guide/ "POST http://my-parse-server.com/schemas/Announcement"
-  
-  //fill questions data
-  //fill polls data
-
   return getStatusResponseObj(200, "Finished registration");
 });
+
+const fillClassTables = async (type, siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialDataArr, modelFieldDataArr) => {
+  //adding model obj to models table
+  let modelTableObj = buildModelTableObj(type, siteObj, user, `${tablesFirstPartName}_${type}_${tablesUniquePartName}`);
+  await modelTableObj.save(null, { "useMasterKey": true });
+  //adding obj fields to ModelField table
+  const objsModelField = await fillParseTable(modelFieldDataArr, "ModelField", { model: modelTableObj.toPointer(), ACL: new Parse.ACL(user) });
+  //writing pictures to polls
+  await fillMediaUrls(tutorialDataArr, getPublicReadACL(user), siteObj);
+  //adding user's tutorial answers table
+  const tutorial = await fillParseTable(tutorialDataArr, `${tablesFirstPartName}_${type}_${tablesUniquePartName}`, { "ACL": getPublicReadACL(user), "t__status": "Published" });
+}
+
+const getPublicReadACL = (user) => {
+  const acl = user.getACL();
+  acl.setPublicReadAccess(true);
+
+  return acl;
+}
+
+const fillMediaUrls = async (dataArr, acl, site) => {
+  //double "for" construction is oldschool, must be more efficient way
+  for (const item of dataArr) {
+    let deleteImageNameFields = [];
+    for (const [key, value] of Object.entries(item)) {
+      if (key && value && key.toLowerCase().includes("image") && value.includes(".png")) {
+        item[key] = await saveMediaItem(value, `${key}Name`, acl, site);
+        deleteImageNameFields.push(`${key}Name`);
+      }
+    }
+    deleteImageNameFields.forEach(element => delete item[element]);
+  };
+}
+
+const saveMediaItem = async (filePath, fileName, acl, site) => {
+  //reading file method is complicated, must be easier solution
+  const data = fs.readFileSync(path.join(__dirname, filePath));
+  var base64 = data.toString("base64");
+  var file = new Parse.File(fileName, { base64: base64 });
+  await file.save();
+
+  const MediaItem = Parse.Object.extend("MediaItem");
+  const mediaItem = new MediaItem();
+
+  mediaItem.set({ 
+    site: site.toPointer(),
+    ACL: acl,
+    name: "cat",
+    type: "image/png",
+    file: file,
+    size: data.length, 
+    assigned: false,
+  });
+  await mediaItem.save();
+
+  return mediaItem;
+};
 
 const buildSiteTableObj = (tableName, title, user) => {
   const siteObj = new (Parse.Object.extend("Site"));

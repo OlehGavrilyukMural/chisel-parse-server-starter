@@ -1,20 +1,17 @@
-{
-  "questionsClass": {
-    "__type": "Object",
-    "className": "Poll"
-  },
-  "pollsDataArray": [
+[
     {
-      "pollName": "This is the short name of Poll. It must be unique.",
+      "pollName": "Poll name. Must be unique",
       "pollTitle": "This is a Poll title",
-      "description": "This is a Poll description",
-      "intro": "Welcome! This is an intro text to a Poll",
-      "introBackgroundImage": "./cat.png",
-      "questionsBackgroundImage": "./cat.png",
-      "endScoreMessage": "Congratulations! This is example of poll end message with scores. Poll can also be set to not count and display points at the end",
-      "endBackgroundImage": "./cat.png",
-      "scoredPoll": true,
-      "questionsArrayIndex": [0, 1, 2, 3, 4, 5]
+      "description": "This is a Poll description.\nIt can be long.\nAnd multi-line",
+      "intro": "Welcome! This is an intro text to a Poll!\nIt can be long.\nAnd multi-line.",
+      "outro": "This is an outro of the poll.\nIt can be multiline too",
+      "endScoreMessage": "Congratulations!\nThis is an example of a poll end message with scores. \nThe Poll can also be set to not to count the points with an isScoredPoll flag in the CMS.",
+      "introBackgroundImage": "tutorialTemplates/cat.png",
+      "introBackgroundImageName": "IntroCatPhoto",
+      "outroBackgroundImage": "tutorialTemplates/cat.png",
+      "outroBackgroundImageName": "OutroCatPhoto",
+      "questionsBackgroundImage": "tutorialTemplates/cat.png",
+      "questionsBackgroundImageName": "QuestionsBackgroundCatPhoto",
+      "isScoredPoll": true
     }
-  ]
-}
+]
