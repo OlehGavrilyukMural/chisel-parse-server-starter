@@ -22,7 +22,7 @@ const getCustomParseObject = (className) => {
       "className": className,
     });
 }
-const fillParseTable = async (dataArr, className, mergeAttr) => {
+const massFillParseTable = async (dataArr, className, mergeAttr) => {
   const result = [];
   for (const item of dataArr) {
     const parseObj = getCustomParseObject(className);
@@ -92,6 +92,9 @@ Parse.Cloud.define("finishCreation", async (request) => {
   const tutorialAnswersData = JSON.parse(JSON.stringify(require('./tutorialTemplates/tutorialAnswers.json')));
   const answerModelFieldData = JSON.parse(JSON.stringify(require('./models/answerModelFieldModel.json')));
 
+  const questionsAnswersWiring = JSON.parse(JSON.stringify(require('./tutorialTemplates/wiringQuestionsAnswers.json')));
+  const pollsQuestionsWiring = JSON.parse(JSON.stringify(require('./tutorialTemplates/wiringPollsQuestions.json')));
+
   const { email, password } = request.params;
   //TODO - return this line when not testing
   //if ((await getUserEmailStatus(email)).status != 200) return getStatusResponseObj(400, "Email missing or was not confirmed");
@@ -113,10 +116,14 @@ Parse.Cloud.define("finishCreation", async (request) => {
   await siteObj.save(null, { "useMasterKey": true });
 
   //add poll and then question with id of poll, etc.
-  //TODO refactor this tree monstrous method calls
+  //TODO refactor this monstrous method calls
   const filledAnswerTutorial = await fillClassTables("Answer", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialAnswersData, answerModelFieldData);
   const filledQuestionTutorial = await fillClassTables("Question", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialQuestionsData, questionModelFieldData);
+  wireParseObjects(filledQuestionTutorial, filledAnswerTutorial, questionsAnswersWiring, "answers");
+  await Parse.Object.saveAll(filledQuestionTutorial, { useMasterKey: true });
   const filledPollTutorial = await fillClassTables("Poll", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialPollsData, pollModelFieldData);
+  wireParseObjects(filledPollTutorial, filledQuestionTutorial, pollsQuestionsWiring, "questions");
+  await Parse.Object.saveAll(filledPollTutorial, { useMasterKey: true });
 
   //TODO apply CPL to new table https://docs.parseplatform.org/js/guide/ "POST http://my-parse-server.com/schemas/Announcement"
   return getStatusResponseObj(200, "Finished registration");
@@ -127,11 +134,13 @@ const fillClassTables = async (type, siteObj, user, tablesFirstPartName, tablesU
   let modelTableObj = buildModelTableObj(type, siteObj, user, `${tablesFirstPartName}_${type}_${tablesUniquePartName}`);
   await modelTableObj.save(null, { "useMasterKey": true });
   //adding obj fields to ModelField table
-  const objsModelField = await fillParseTable(modelFieldDataArr, "ModelField", { model: modelTableObj.toPointer(), ACL: new Parse.ACL(user) });
+  const objsModelField = await massFillParseTable(modelFieldDataArr, "ModelField", { model: modelTableObj.toPointer(), ACL: new Parse.ACL(user) });
   //writing pictures to polls
   await fillMediaUrls(tutorialDataArr, getPublicReadACL(user), siteObj);
   //adding user's tutorial answers table
-  const tutorial = await fillParseTable(tutorialDataArr, `${tablesFirstPartName}_${type}_${tablesUniquePartName}`, { "ACL": getPublicReadACL(user), "t__status": "Published" });
+  const tutorial = await massFillParseTable(tutorialDataArr, `${tablesFirstPartName}_${type}_${tablesUniquePartName}`, { "ACL": getPublicReadACL(user), "t__status": "Published" });
+
+  return tutorial;
 }
 
 const getPublicReadACL = (user) => {
@@ -147,7 +156,7 @@ const fillMediaUrls = async (dataArr, acl, site) => {
     let deleteImageNameFields = [];
     for (const [key, value] of Object.entries(item)) {
       if (key && value && key.toLowerCase().includes("image") && value.includes(".png")) {
-        item[key] = await saveMediaItem(value, `${key}Name`, acl, site);
+        item[key] = await saveMediaItem(value, `${key}Name.png`, acl, site);
         deleteImageNameFields.push(`${key}Name`);
       }
     }
@@ -203,4 +212,13 @@ const buildModelTableObj = (className, siteObj, user, tableName) => {
   });
 
   return modelObj;
+}
+
+const wireParseObjects = (dataArrParent, dataArrChild, wiringTable, columnName) => {
+  for (i = 0; i < dataArrParent.length; i++) {
+    const filteredArr = dataArrChild.filter( (value, index, arr) => wiringTable[i].includes(index) );
+    dataArrParent[i].set({ [columnName]: filteredArr });
+  }
+
+  return dataArrParent;
 }

@@ -3,7 +3,7 @@
       "text": "This is a simple question with 2 answers"
     },
     {
-      "text": "This is a question with image and 2 simple answers",
+      "text": "This is a question with image and one answer has image too",
       "image": "tutorialTemplates/cat.png",
       "imageName": "Cat Question Image"
     },
@@ -12,7 +12,7 @@
       "videoUrl": "https://www.youtube.com/watch?v=mhslj4-OSRM"
     },
     {
-      "text": "This is a question with correct answer and wrong answer with image",
+      "text": "This is a question with video and one scored answer",
       "videoUrl": "https://www.youtube.com/watch?v=mhslj4-OSRM"
     },
     {

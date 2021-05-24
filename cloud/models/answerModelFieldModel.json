@@ -23,6 +23,16 @@
     "name": "Image for answer",
     "order": 1,
     "isTitle": false,
+    "validations": 
+    {
+      "fileTypes": 
+      {
+        "active": true,
+        "types": ["Image"],
+        "errorMsg":"",
+        "isError": false
+      }
+    },
     "type": "Media",
     "isUnique": false,
     "validValues": []

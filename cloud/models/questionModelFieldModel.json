@@ -15,6 +15,44 @@
   },
   {
     "color": "rgba(128, 128, 128, 1)",
+    "appearance": "Reference",
+    "nameId": "answers",
+    "isDisabled": false,
+    "isList": true,
+    "isRequired": false,
+    "name": "Answers",
+    "order": 5,
+    "isTitle": false,
+    "validations": 
+    {
+      "models": 
+      {
+        "active": true,
+        "modelsList": ["Answer"],
+        "errorMsg":"",
+        "isError": false
+      }
+    },
+    "type": "Reference",
+    "isUnique": false,
+    "validValues": []
+  },
+  {
+    "color": "rgba(128, 128, 128, 1)",
+    "appearance": "Switch",
+    "nameId": "isMultipleCorrect",
+    "isDisabled": false,
+    "isList": false,
+    "isRequired": false,
+    "name": "Is there multiple correct answers?",
+    "order": 4,
+    "isTitle": false,
+    "type": "Boolean",
+    "isUnique": false,
+    "validValues": []
+  },
+  {
+    "color": "rgba(128, 128, 128, 1)",
     "appearance": "Media",
     "nameId": "image",
     "isDisabled": false,
@@ -23,6 +61,16 @@
     "name": "Image for question",
     "order": 2,
     "isTitle": false,
+    "validations": 
+    {
+      "fileTypes": 
+      {
+        "active": true,
+        "types": ["Image"],
+          "errorMsg":"",
+          "isError": false
+      }
+    },
     "type": "Media",
     "isUnique": false,
     "validValues": []
@@ -38,20 +86,6 @@
     "order": 3,
     "isTitle": false,
     "type": "Long Text",
-    "isUnique": false,
-    "validValues": []
-  },
-  {
-    "color": "rgba(128, 128, 128, 1)",
-    "appearance": "Switch",
-    "nameId": "isMultipleCorrect",
-    "isDisabled": false,
-    "isList": false,
-    "isRequired": false,
-    "name": "Is there multiple correct answers?",
-    "order": 4,
-    "isTitle": false,
-    "type": "Boolean",
     "isUnique": false,
     "validValues": []
   }

@@ -71,14 +71,62 @@
   },
   {
     "color": "rgba(128, 128, 128, 1)",
+    "appearance": "Reference",
+    "nameId": "questions",
+    "isDisabled": false,
+    "isList": true,
+    "isRequired": false,
+    "name": "Questions",
+    "order": 5,
+    "isTitle": false,
+    "validations": 
+    {
+      "models": 
+      {
+        "active": true,
+        "modelsList": ["Question"],
+        "errorMsg":"",
+        "isError": false
+      }
+    },
+    "type": "Reference",
+    "isUnique": false,
+    "validValues": []
+  },
+  {
+    "color": "rgba(128, 128, 128, 1)",
+    "appearance": "Switch",
+    "nameId": "isScoredPoll",
+    "isDisabled": false,
+    "isList": false,
+    "isRequired": false,
+    "name": "Score points in Poll?",
+    "order": 6,
+    "isTitle": false,
+    "type": "Boolean",
+    "isUnique": false,
+    "validValues": []
+  },
+  {
+    "color": "rgba(128, 128, 128, 1)",
     "appearance": "Media",
     "nameId": "introBackgroundImage",
     "isDisabled": false,
     "isList": false,
     "isRequired": false,
     "name": "Image for intro background (optional)",
-    "order": 5,
+    "order": 7,
     "isTitle": false,
+    "validations": 
+    {
+      "fileTypes": 
+      {
+        "active": true,
+        "types": ["Image"],
+        "errorMsg":"",
+        "isError": false
+      }
+    },
     "type": "Media",
     "isUnique": false,
     "validValues": []
@@ -91,8 +139,19 @@
     "isList": false,
     "isRequired": false,
     "name": "Image for outro background (optional)",
-    "order": 6,
+    "order": 8,
     "isTitle": false,
+    "validations": 
+    {
+      "fileTypes": 
+      {
+        "active": true,
+        "types": ["Image"],
+        "errorMsg":"",
+        "isError": false
+      }
+    },
+
     "type": "Media",
     "isUnique": false,
     "validValues": []
@@ -105,23 +164,20 @@
     "isList": false,
     "isRequired": false,
     "name": "Image for questions background (optional)",
-    "order": 7,
+    "order": 9,
     "isTitle": false,
+    "validations": 
+    {
+      "fileTypes": 
+      {
+        "active": true,
+        "types": ["Image"],
+        "errorMsg":"",
+        "isError": false
+      }
+    },
+
     "type": "Media",
-    "isUnique": false,
-    "validValues": []
-  },
-  {
-    "color": "rgba(128, 128, 128, 1)",
-    "appearance": "Switch",
-    "nameId": "isScoredPoll",
-    "isDisabled": false,
-    "isList": false,
-    "isRequired": false,
-    "name": "Score points in Poll?",
-    "order": 8,
-    "isTitle": false,
-    "type": "Boolean",
     "isUnique": false,
     "validValues": []
   }
