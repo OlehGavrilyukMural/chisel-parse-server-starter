@@ -58,7 +58,7 @@ const getUserEmailStatus = async (email) => {
 }
 
 //This method is against global security rules as it can expose emails of users via brute force
-Parse.Cloud.define("getUserStatus", async (request) => {
+Parse.Cloud.define("user-status", async (request) => {
   const { email } = request.params;
   if (!email) return getStatusResponseObj(400, 'Email is required');
 
@@ -66,18 +66,18 @@ Parse.Cloud.define("getUserStatus", async (request) => {
 });
 
 //Currently parse server stores email as username, so no username exists
-Parse.Cloud.define("registerUser", async (request) => {
+Parse.Cloud.define("user-register", async (request) => {
   const { email, password, username } = request.params;
   if (!email || !password || !username) return getStatusResponseObj(400, 'Email, password and username are required');
   if (await verifyObjectExists("User", "email", email)) return getStatusResponseObj(409, 'Email is already taken');
   if (await verifyObjectExists("User", "username", username)) return getStatusResponseObj(409, 'Username is already taken');
 
-  //TODO close User table access
   await Parse.User.signUp(email, password, {'email': email});
   
   return getStatusResponseObj(200, "Registered");
 });
 
+//TODO uncomment on tests done
 const getSessionTokenUser = async (request) => {
 
   return getStatusResponseObj(200, "User fetched", await Parse.User.me("r:9f19b9253713cc3e4f23ce5968e40824"));
@@ -97,12 +97,11 @@ const getSessionTokenUser = async (request) => {
   return getStatusResponseObj(200, "User fetched", user);
 }
 
-Parse.Cloud.define("endPoll", async (request) => {
+Parse.Cloud.define("poll-end", async (request) => {
   const { boardId } = request.params;
 
   const authUser = await getSessionTokenUser(request);
   if (authUser.status != 200) return authUser;
-  const user = authUser.payload;
   
   //TODO move query block to separate method down there
   const activeSessions = await (new Parse.Query(
@@ -121,7 +120,7 @@ Parse.Cloud.define("endPoll", async (request) => {
   return getStatusResponseObj(200, "Active sessions ended");
 });
 
-Parse.Cloud.define("startPoll", async (request) => {
+Parse.Cloud.define("poll-start", async (request) => {
   const { boardId, pollId } = request.params;
   
   if (!boardId || !pollId) return getStatusResponseObj(400, "No required param found");
@@ -158,35 +157,33 @@ Parse.Cloud.define("startPoll", async (request) => {
 
 });
 
-Parse.Cloud.define("getPoll", async (request) => {
+Parse.Cloud.define("poll", async (request) => {
   const { boardId } = request.params;
-  if (!boardI) {
+  if (!boardId) {
     return getStatusResponseObj(406, "Required parameters not provided.");
   }
 
   const session = await (new Parse.Query("PollSession"))
-  .equalTo("isActive", false)
-  .equalTo("boardId", boardId)
-  .first();
-  //TODO verify if no active poll on boardId
-  if (!session || !session.boardId) {
-    return getStatusResponseObj(400, "Wrong boardId.")
+    .equalTo("isActive", false)
+    .equalTo("boardId", boardId)
+    .first();
+  if (!session) {
+    return getStatusResponseObj(400, "Wrong boardId");
   }
-  const pollId = session.get("boardId");
+  const pollId = session.get("pollId");
   const tableName = session.get("tableName");
   const poll = await (new Parse.Query(tableName))
-  .equalTo("objectId", pollId)
-  .first();
-  //TODO verify if no active poll data on boardId
-  if (!poll || !poll.get("pollName")) {
-    return getStatusResponseObj(404, "No poll data found.")
+    .equalTo("objectId", pollId)
+    .first();  
+  if (!poll) {
+    return getStatusResponseObj(404, "No poll data found");
   }
 
-  return 
+  return poll;
 });
 
 //TODO map status responses and distribute it among codes
-Parse.Cloud.define("getPolls", async (request) => {
+Parse.Cloud.define("polls", async (request) => {
   const authUser = await getSessionTokenUser(request);
   if (authUser.status != 200) return authUser;
   const user = authUser.payload;
@@ -243,7 +240,7 @@ const getAllPublished = async (tableNameField, dataArr, includeStrings, equalPai
   return result.flat();
 };
 
-Parse.Cloud.define("finishCreation", async (request) => {
+Parse.Cloud.define("user-finalize", async (request) => {
 
   //Here is a strange situation with caching. 
   //If required objects are updated, the updates are stored between sessions.
