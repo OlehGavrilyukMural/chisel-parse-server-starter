@@ -1,10 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const getStatusResponseObj = (statusCode, statusMessage) => {
+const getStatusResponseObj = (statusCode, statusMessage, payload) => {
   return { 
-    'status': statusCode, 
-    'message': statusMessage, 
+    status: statusCode,
+    message: statusMessage,
+    payload: payload,
   };
 };
 
@@ -47,7 +48,7 @@ const getUserEmailStatus = async (email) => {
   return await (new Parse.Query(
     Parse.Object.extend("User")))
     .equalTo("email", email)
-    .first()
+    .first({ useMasterKey: true})
     .then( result => {
       if (!result) return getStatusResponseObj(404, 'Email is not found');
       if (!result.get('emailVerified')) return getStatusResponseObj(403, 'Email is not verified');
@@ -76,6 +77,171 @@ Parse.Cloud.define("registerUser", async (request) => {
   
   return getStatusResponseObj(200, "Registered");
 });
+
+const getSessionTokenUser = async (request) => {
+
+  return getStatusResponseObj(200, "User fetched", await Parse.User.me("r:9f19b9253713cc3e4f23ce5968e40824"));
+
+  try {
+    const sessionToken = request.user.getSessionToken();
+  } catch (e) {
+    return getStatusResponseObj(403, "User header required");
+  }
+  let user;
+  try {
+    user = await Parse.User.me(sessionToken);
+  } catch (e) {
+    return getStatusResponseObj(403, "Session token is not valid");
+  }
+
+  return getStatusResponseObj(200, "User fetched", user);
+}
+
+Parse.Cloud.define("endPoll", async (request) => {
+  const { boardId } = request.params;
+
+  const authUser = await getSessionTokenUser(request);
+  if (authUser.status != 200) return authUser;
+  const user = authUser.payload;
+  
+  //TODO move query block to separate method down there
+  const activeSessions = await (new Parse.Query(
+    Parse.Object.extend("PollSession")))
+    .equalTo("boardId", boardId)
+    .equalTo("isActive", true)
+    .find({ useMasterKey: true });
+
+  if (!activeSessions.length) return getStatusResponseObj(404, "No active sessions found");
+
+  for (const session of activeSessions) {
+    session.set({ "isActive": false });
+  }
+  await Parse.Object.saveAll(activeSessions, { useMasterKey: true });
+
+  return getStatusResponseObj(200, "Active sessions ended");
+});
+
+Parse.Cloud.define("startPoll", async (request) => {
+  const { boardId, pollId } = request.params;
+  
+  if (!boardId || !pollId) return getStatusResponseObj(400, "No required param found");
+
+  const authUser = await getSessionTokenUser(request);
+  if (authUser.status != 200) return authUser;
+  const user = authUser.payload;
+
+  const activeSessions = await (new Parse.Query(
+    Parse.Object.extend("PollSession")))
+    .equalTo("boardId", boardId)
+    .equalTo("isActive", true)
+    .find({ useMasterKey: true });
+
+  if (activeSessions.length) {
+    return getStatusResponseObj(400, "Poll Session is already running for this board");
+  }
+  const userModels = await getPollModels(user);
+  const polls = await getAllPublished("tableName", userModels, null, [{ key: "objectId", value: "MS2UldNvyW" }]);
+
+  if (!polls.length) return getStatusResponseObj(404, "No pollId found");
+
+  const newSession = new (Parse.Object.extend("PollSession"));
+  newSession.set({ 
+    boardId: boardId,
+    facilitator: user.toPointer(),
+    tableName: polls[0].className,
+    pollId: polls[0].id,
+  });
+
+  await newSession.save(null, { useMasterKey: true });
+
+  return getStatusResponseObj(200, "Poll started");
+
+});
+
+Parse.Cloud.define("getPoll", async (request) => {
+  const { boardId } = request.params;
+  if (!boardI) {
+    return getStatusResponseObj(406, "Required parameters not provided.");
+  }
+
+  const session = await (new Parse.Query("PollSession"))
+  .equalTo("isActive", false)
+  .equalTo("boardId", boardId)
+  .first();
+  //TODO verify if no active poll on boardId
+  if (!session || !session.boardId) {
+    return getStatusResponseObj(400, "Wrong boardId.")
+  }
+  const pollId = session.get("boardId");
+  const tableName = session.get("tableName");
+  const poll = await (new Parse.Query(tableName))
+  .equalTo("objectId", pollId)
+  .first();
+  //TODO verify if no active poll data on boardId
+  if (!poll || !poll.get("pollName")) {
+    return getStatusResponseObj(404, "No poll data found.")
+  }
+
+  return 
+});
+
+//TODO map status responses and distribute it among codes
+Parse.Cloud.define("getPolls", async (request) => {
+  const authUser = await getSessionTokenUser(request);
+  if (authUser.status != 200) return authUser;
+  const user = authUser.payload;
+
+  const userModels = await getPollModels(user);  
+  const polls = await getAllPublished("tableName", userModels);
+
+  return polls;
+});
+
+Parse.Cloud.define("getFullPolls", async (request) => {
+  const user = await Parse.User.me(sessionToken);
+  const userModels = await getPollModels(user);
+  
+  const include = ['questions', 'questions.answers'];
+  const polls = await getAllPublished("tableName", userModels, include);
+
+  return polls;
+});
+
+const getPollModels = async (user) => {
+  const userSites = await (new Parse.Query(
+    Parse.Object.extend("Site")))
+    .equalTo("owner", user)
+    .find({ useMasterKey: true });
+  return await (new Parse.Query(
+    Parse.Object.extend("Model")))
+    .containedIn("site", userSites)
+    .equalTo("nameId", "Poll")
+    .find({ useMasterKey: true });
+};
+
+//TODO redo calls to it to getAll with published state sent by equal param
+const getAllPublished = async (tableNameField, dataArr, includeStrings, equalPairs) => {
+  const result = [];
+  for (const item of dataArr) {
+    const tableName = item.get(tableNameField);
+    const pollDataQuery = new Parse.Query(tableName);
+    pollDataQuery.equalTo('t__status', 'Published');
+    if (includeStrings) {
+      for (const item of includeStrings) {
+        pollDataQuery.include(item);
+      }
+    }
+    if (equalPairs) {
+      for (const pair of equalPairs) {
+        pollDataQuery.equalTo(pair.key, pair.value);
+      }
+    }
+    const pollData = await pollDataQuery.find({ useMasterKey: true });
+    result.push(pollData);
+  }
+
+  return result.flat();
+};
 
 Parse.Cloud.define("finishCreation", async (request) => {
 
@@ -115,30 +281,36 @@ Parse.Cloud.define("finishCreation", async (request) => {
   let siteObj = await buildSiteTableObj(tablesUniquePartName, "MyPolls", user)
   await siteObj.save(null, { "useMasterKey": true });
 
-  //add poll and then question with id of poll, etc.
   //TODO refactor this monstrous method calls
-  const filledAnswerTutorial = await fillClassTables("Answer", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialAnswersData, answerModelFieldData);
-  const filledQuestionTutorial = await fillClassTables("Question", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialQuestionsData, questionModelFieldData);
+  const filledAnswerTutorial = await fillClassTables("Answer", siteObj, user, `${tablesFirstPartName}_Answer_${tablesUniquePartName}`, tutorialAnswersData, answerModelFieldData);
+  
+  const filledQuestionTutorial = await fillClassTables("Question", siteObj, user, `${tablesFirstPartName}_Question_${tablesUniquePartName}`, tutorialQuestionsData, questionModelFieldData);
   wireParseObjects(filledQuestionTutorial, filledAnswerTutorial, questionsAnswersWiring, "answers");
   await Parse.Object.saveAll(filledQuestionTutorial, { useMasterKey: true });
-  const filledPollTutorial = await fillClassTables("Poll", siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialPollsData, pollModelFieldData);
+  
+  const filledPollTutorial = await fillClassTables("Poll", siteObj, user, `${tablesFirstPartName}_Poll_${tablesUniquePartName}`, tutorialPollsData, pollModelFieldData);
   wireParseObjects(filledPollTutorial, filledQuestionTutorial, pollsQuestionsWiring, "questions");
   await Parse.Object.saveAll(filledPollTutorial, { useMasterKey: true });
 
-  //TODO apply CPL to new table https://docs.parseplatform.org/js/guide/ "POST http://my-parse-server.com/schemas/Announcement"
   return getStatusResponseObj(200, "Finished registration");
 });
 
-const fillClassTables = async (type, siteObj, user, tablesFirstPartName, tablesUniquePartName, tutorialDataArr, modelFieldDataArr) => {
+const fillClassTables = async (type, siteObj, user, tableName, tutorialDataArr, modelFieldDataArr) => {
   //adding model obj to models table
-  let modelTableObj = buildModelTableObj(type, siteObj, user, `${tablesFirstPartName}_${type}_${tablesUniquePartName}`);
+  let modelTableObj = buildModelTableObj(type, siteObj, user, tableName);
   await modelTableObj.save(null, { "useMasterKey": true });
   //adding obj fields to ModelField table
   const objsModelField = await massFillParseTable(modelFieldDataArr, "ModelField", { model: modelTableObj.toPointer(), ACL: new Parse.ACL(user) });
   //writing pictures to polls
   await fillMediaUrls(tutorialDataArr, getPublicReadACL(user), siteObj);
   //adding user's tutorial answers table
-  const tutorial = await massFillParseTable(tutorialDataArr, `${tablesFirstPartName}_${type}_${tablesUniquePartName}`, { "ACL": getPublicReadACL(user), "t__status": "Published" });
+  const tutorial = await massFillParseTable(tutorialDataArr, tableName, { "ACL": getPublicReadACL(user), "t__status": "Published" });
+
+  //updating class level permissions with read *, write user permissions
+  const scheme = new Parse.Schema(tableName);
+  await scheme.get({ useMasterKey: true });
+  scheme.setCLP(getCLP(user.id));
+  await scheme.update({ useMasterKey: true});
 
   return tutorial;
 }
@@ -221,4 +393,36 @@ const wireParseObjects = (dataArrParent, dataArrChild, wiringTable, columnName) 
   }
 
   return dataArrParent;
+}
+
+const getCLP = (userId) => {
+  return {
+      find: {
+          "*": true,
+          [userId]: true
+      },
+      count: {
+          "*": true,
+          [userId]: true
+      },
+      get: {
+          "*": true,
+          [userId]: true
+      },
+      create: {
+          [userId]: true
+      },
+      update: {
+          [userId]: true
+      },
+      delete: {
+          [userId]: true
+      },
+      addField: {
+          [userId]: true
+      },
+      protectedFields: {
+          "*": []
+      }
+    }
 }

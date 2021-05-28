@@ -1,0 +1,24 @@
+{
+  "classLevelPermissions": {
+    "find": {
+        "*": true
+    },
+    "count": {
+        "*": true
+    },
+    "get": {
+        "*": true
+    },
+    "create": {
+    },
+    "update": {
+    },
+    "delete": {
+    },
+    "addField": {
+    },
+    "protectedFields": {
+        "*": []
+    }
+  }
+}
