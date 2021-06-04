@@ -1,62 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const getStatusResponseObj = (statusCode, statusMessage, payload) => {
-  return { 
-    status: statusCode,
-    message: statusMessage,
-    payload: payload,
-  };
-};
-
-const verifyObjectExists = async (className, columnName, fieldValue) => {
-  return await (new Parse.Query(
-    Parse.Object.extend(className)))
-    .equalTo(columnName, fieldValue)
-    .first({ useMasterKey: true });
-};
-
-const getCustomParseObject = (className) => {
-  return Parse.Object.fromJSON(
-    {
-      "__type": "Object",
-      "className": className,
-    });
-}
-const massFillParseTable = async (dataArr, className, mergeAttr) => {
-  const result = [];
-  for (const item of dataArr) {
-    const parseObj = getCustomParseObject(className);
-    parseObj.set(item);
-    if (mergeAttr) parseObj.set(mergeAttr);
-    result.push(parseObj);
-  }
-  await Parse.Object.saveAll(result);
-
-  return result;
-}
-
-const findObject = async (className, searchColumn, value) => {
-  return await (new Parse.Query(
-    Parse.Object.extend(className)))
-    .equalTo(searchColumn, value)
-    .first();
-}
-
-//TODO select between await and then
-const getUserEmailStatus = async (email) => {
-  return await (new Parse.Query(
-    Parse.Object.extend("User")))
-    .equalTo("email", email)
-    .first({ useMasterKey: true})
-    .then( result => {
-      if (!result) return getStatusResponseObj(404, 'Email is not found');
-      if (!result.get('emailVerified')) return getStatusResponseObj(403, 'Email is not verified');
-
-      return getStatusResponseObj(200, 'Registered');
-    });
-}
-
 //This method is against global security rules as it can expose emails of users via brute force
 Parse.Cloud.define("user-status", async (request) => {
   const { email } = request.params;
@@ -76,26 +20,6 @@ Parse.Cloud.define("user-register", async (request) => {
   
   return getStatusResponseObj(200, "Registered");
 });
-
-//TODO uncomment on tests done
-const getSessionTokenUser = async (request) => {
-
-  return getStatusResponseObj(200, "User fetched", await Parse.User.me("r:9f19b9253713cc3e4f23ce5968e40824"));
-
-  try {
-    const sessionToken = request.user.getSessionToken();
-  } catch (e) {
-    return getStatusResponseObj(403, "User header required");
-  }
-  let user;
-  try {
-    user = await Parse.User.me(sessionToken);
-  } catch (e) {
-    return getStatusResponseObj(403, "Session token is not valid");
-  }
-
-  return getStatusResponseObj(200, "User fetched", user);
-}
 
 Parse.Cloud.define("poll-end", async (request) => {
   const { boardId } = request.params;
@@ -194,7 +118,7 @@ Parse.Cloud.define("polls", async (request) => {
   return polls;
 });
 
-Parse.Cloud.define("getFullPolls", async (request) => {
+Parse.Cloud.define("polls-full", async (request) => {
   const user = await Parse.User.me(sessionToken);
   const userModels = await getPollModels(user);
   
@@ -203,42 +127,6 @@ Parse.Cloud.define("getFullPolls", async (request) => {
 
   return polls;
 });
-
-const getPollModels = async (user) => {
-  const userSites = await (new Parse.Query(
-    Parse.Object.extend("Site")))
-    .equalTo("owner", user)
-    .find({ useMasterKey: true });
-  return await (new Parse.Query(
-    Parse.Object.extend("Model")))
-    .containedIn("site", userSites)
-    .equalTo("nameId", "Poll")
-    .find({ useMasterKey: true });
-};
-
-//TODO redo calls to it to getAll with published state sent by equal param
-const getAllPublished = async (tableNameField, dataArr, includeStrings, equalPairs) => {
-  const result = [];
-  for (const item of dataArr) {
-    const tableName = item.get(tableNameField);
-    const pollDataQuery = new Parse.Query(tableName);
-    pollDataQuery.equalTo('t__status', 'Published');
-    if (includeStrings) {
-      for (const item of includeStrings) {
-        pollDataQuery.include(item);
-      }
-    }
-    if (equalPairs) {
-      for (const pair of equalPairs) {
-        pollDataQuery.equalTo(pair.key, pair.value);
-      }
-    }
-    const pollData = await pollDataQuery.find({ useMasterKey: true });
-    result.push(pollData);
-  }
-
-  return result.flat();
-};
 
 Parse.Cloud.define("user-finalize", async (request) => {
 
@@ -291,6 +179,120 @@ Parse.Cloud.define("user-finalize", async (request) => {
 
   return getStatusResponseObj(200, "Finished registration");
 });
+
+const getStatusResponseObj = (statusCode, statusMessage, payload) => {
+  return { 
+    status: statusCode,
+    message: statusMessage,
+    payload: payload,
+  };
+};
+
+const verifyObjectExists = async (className, columnName, fieldValue) => {
+  return await (new Parse.Query(
+    Parse.Object.extend(className)))
+    .equalTo(columnName, fieldValue)
+    .first({ useMasterKey: true });
+};
+
+const getCustomParseObject = (className) => {
+  return Parse.Object.fromJSON(
+    {
+      "__type": "Object",
+      "className": className,
+    });
+}
+
+const massFillParseTable = async (dataArr, className, mergeAttr) => {
+  const result = [];
+  for (const item of dataArr) {
+    const parseObj = getCustomParseObject(className);
+    parseObj.set(item);
+    if (mergeAttr) parseObj.set(mergeAttr);
+    result.push(parseObj);
+  }
+  await Parse.Object.saveAll(result);
+
+  return result;
+}
+
+const findObject = async (className, searchColumn, value) => {
+  return await (new Parse.Query(
+    Parse.Object.extend(className)))
+    .equalTo(searchColumn, value)
+    .first();
+}
+
+//TODO select between await and then
+const getUserEmailStatus = async (email) => {
+  return await (new Parse.Query(
+    Parse.Object.extend("User")))
+    .equalTo("email", email)
+    .first({ useMasterKey: true})
+    .then( result => {
+      if (!result) return getStatusResponseObj(404, 'Email is not found');
+      if (!result.get('emailVerified')) return getStatusResponseObj(403, 'Email is not verified');
+
+      return getStatusResponseObj(200, 'Registered');
+    });
+}
+
+//TODO uncomment on tests done
+const getSessionTokenUser = async (request) => {
+
+  //return getStatusResponseObj(200, "User fetched", await Parse.User.me("r:9f19b9253713cc3e4f23ce5968e40824"));
+
+  const sessionToken = request.headers['x-parse-session-token'];
+  console.log(JSON.stringify(request));
+  console.log(sessionToken);
+  if (!sessionToken)
+    return getStatusResponseObj(403, "User header required");
+
+  let user;
+  try {
+    user = await Parse.User.me(sessionToken);
+  } catch (e) {
+    return getStatusResponseObj(403, "Session token is not valid");
+  }
+
+  return getStatusResponseObj(200, "User fetched", user);
+}
+
+const getPollModels = async (user) => {
+  const userSites = await (new Parse.Query(
+    Parse.Object.extend("Site")))
+    .equalTo("owner", user)
+    .find({ useMasterKey: true });
+  return await (new Parse.Query(
+    Parse.Object.extend("Model")))
+    .containedIn("site", userSites)
+    .equalTo("nameId", "Poll")
+    .find({ useMasterKey: true });
+};
+
+//TODO redo calls to it to getAll with published state sent by equal param
+const getAllPublished = async (tableNameField, dataArr, includeStrings, equalPairs) => {
+  const result = [];
+  for (const item of dataArr) {
+    const tableName = item.get(tableNameField);
+    const pollDataQuery = new Parse.Query(tableName);
+    pollDataQuery.equalTo('t__status', 'Published');
+    if (includeStrings) {
+      for (const item of includeStrings) {
+        pollDataQuery.include(item);
+      }
+    }
+    if (equalPairs) {
+      for (const pair of equalPairs) {
+        pollDataQuery.equalTo(pair.key, pair.value);
+      }
+    }
+    const pollData = await pollDataQuery.find({ useMasterKey: true });
+    result.push(pollData);
+  }
+
+  return result.flat();
+};
 
 const fillClassTables = async (type, siteObj, user, tableName, tutorialDataArr, modelFieldDataArr) => {
   //adding model obj to models table
