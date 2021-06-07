@@ -97,8 +97,10 @@ Parse.Cloud.define("poll", async (request) => {
   const pollId = session.get("pollId");
   const tableName = session.get("tableName");
   const poll = await (new Parse.Query(tableName))
-    .equalTo("objectId", pollId)
-    .first();  
+    .equalTo("objectId", pollId)    
+    .include('questions')
+    .include('questions.answers')
+    .first({ useMasterKey: true });  
   if (!poll) {
     return getStatusResponseObj(404, "No poll data found");
   }
@@ -111,15 +113,16 @@ Parse.Cloud.define("polls", async (request) => {
   const authUser = await getSessionTokenUser(request);
   if (authUser.status != 200) return authUser;
   const user = authUser.payload;
-
+  const include = ['questions', 'questions.answers'];
   const userModels = await getPollModels(user);  
-  const polls = await getAllPublished("tableName", userModels);
+  const polls = await getAllPublished("tableName", userModels, include);
 
   return polls;
 });
 
 Parse.Cloud.define("polls-full", async (request) => {
-  const user = await Parse.User.me(sessionToken);
+  const user = await getSessionTokenUser(request);
+  //const user = await Parse.User.me(sessionToken);
   const userModels = await getPollModels(user);
   
   const include = ['questions', 'questions.answers'];
