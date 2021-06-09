@@ -63,7 +63,7 @@ Parse.Cloud.define("poll-start", async (request) => {
     return getStatusResponseObj(400, "Poll Session is already running for this board");
   }
   const userModels = await getPollModels(user);
-  const polls = await getAllPublished("tableName", userModels, null, [{ key: "objectId", value: "MS2UldNvyW" }]);
+  const polls = await getObjects("tableName", userModels, null, [{ key: "objectId", value: "MS2UldNvyW" }]);
 
   if (!polls.length) return getStatusResponseObj(404, "No pollId found");
 
@@ -90,17 +90,19 @@ Parse.Cloud.define("poll", async (request) => {
   const session = await (new Parse.Query("PollSession"))
     .equalTo("isActive", false)
     .equalTo("boardId", boardId)
-    .first();
+    .first({ useMasterKey: true });
   if (!session) {
     return getStatusResponseObj(400, "Wrong boardId");
   }
   const pollId = session.get("pollId");
   const tableName = session.get("tableName");
-  const poll = await (new Parse.Query(tableName))
-    .equalTo("objectId", pollId)    
-    .include('questions')
-    .include('questions.answers')
-    .first({ useMasterKey: true });  
+
+  const poll = getObjectQuery(
+    tableName,
+    getFullPollInclude(),
+    [{ key: 'objectId', value: pollId}],
+  )
+  
   if (!poll) {
     return getStatusResponseObj(404, "No poll data found");
   }
@@ -113,9 +115,9 @@ Parse.Cloud.define("polls", async (request) => {
   const authUser = await getSessionTokenUser(request);
   if (authUser.status != 200) return authUser;
   const user = authUser.payload;
-  const include = ['questions', 'questions.answers'];
+  //const include = ['questions', 'questions.answers'];
   const userModels = await getPollModels(user);  
-  const polls = await getAllPublished("tableName", userModels, include);
+  const polls = await getObjects("tableName", userModels, getFullPollInclude(), [{ key: 't__status', value: 'Published' }]);
 
   return polls;
 });
@@ -126,7 +128,7 @@ Parse.Cloud.define("polls-full", async (request) => {
   const userModels = await getPollModels(user);
   
   const include = ['questions', 'questions.answers'];
-  const polls = await getAllPublished("tableName", userModels, include);
+  const polls = await getObjects("tableName", userModels, include, [{ key: 't__status', value: 'Published' }]);
 
   return polls;
 });
@@ -182,6 +184,18 @@ Parse.Cloud.define("user-finalize", async (request) => {
 
   return getStatusResponseObj(200, "Finished registration");
 });
+
+const getFullPollInclude = () => {
+  return [
+    'introBackgroundImage',
+    'outroBackgroundImage',
+    'questionsBackgroundImage',
+    'questions',
+    'questions.image',
+    'questions.answers',
+    'questions.answers.image',
+  ];
+};
 
 const getStatusResponseObj = (statusCode, statusMessage, payload) => {
   return { 
@@ -243,8 +257,6 @@ const getUserEmailStatus = async (email) => {
 //TODO uncomment on tests done
 const getSessionTokenUser = async (request) => {
 
-  //return getStatusResponseObj(200, "User fetched", await Parse.User.me("r:9f19b9253713cc3e4f23ce5968e40824"));
-
   const sessionToken = request.headers['x-parse-session-token'];
   console.log(JSON.stringify(request));
   console.log(sessionToken);
@@ -274,28 +286,31 @@ const getPollModels = async (user) => {
 };
 
 //TODO redo calls to it to getAll with published state sent by equal param
-const getAllPublished = async (tableNameField, dataArr, includeStrings, equalPairs) => {
+const getObjects = async (tableNameField, dataArr, includeStrings, equalPairs) => {
   const result = [];
   for (const item of dataArr) {
     const tableName = item.get(tableNameField);
-    const pollDataQuery = new Parse.Query(tableName);
-    pollDataQuery.equalTo('t__status', 'Published');
-    if (includeStrings) {
-      for (const item of includeStrings) {
-        pollDataQuery.include(item);
-      }
-    }
-    if (equalPairs) {
-      for (const pair of equalPairs) {
-        pollDataQuery.equalTo(pair.key, pair.value);
-      }
-    }
-    const pollData = await pollDataQuery.find({ useMasterKey: true });
-    result.push(pollData);
+    obj = await getObjectQuery(tableName, includeStrings, equalPairs);
+    result.push(obj);
   }
 
   return result.flat();
 };
+
+const getObjectQuery = async (tableName, includeStrings, equalPairs) => {
+  const pollDataQuery = new Parse.Query(tableName);    
+  if (includeStrings) {
+    for (const item of includeStrings) {
+      pollDataQuery.include(item);
+    }
+  }
+  if (equalPairs) {
+    for (const pair of equalPairs) {
+      pollDataQuery.equalTo(pair.key, pair.value);
+    }
+  }
+  return await pollDataQuery.find({ useMasterKey: true });
+}
 
 const fillClassTables = async (type, siteObj, user, tableName, tutorialDataArr, modelFieldDataArr) => {
   //adding model obj to models table
