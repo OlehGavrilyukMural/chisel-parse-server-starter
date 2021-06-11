@@ -9,11 +9,11 @@
     },
     {
       "text": "This is a question with video and 2 simple answers",
-      "videoUrl": "https://www.youtube.com/watch?v=mhslj4-OSRM"
+      "videoUrl": "https://www.youtube.com/embed/mhslj4-OSRM"
     },
     {
       "text": "This is a question with video and one scored answer",
-      "videoUrl": "https://www.youtube.com/watch?v=mhslj4-OSRM"
+      "videoUrl": "https://www.youtube.com/embed/mhslj4-OSRM"
     },
     {
       "text": "This is a question with multiple answers",
