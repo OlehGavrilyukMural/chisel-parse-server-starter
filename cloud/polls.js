@@ -151,17 +151,16 @@ Parse.Cloud.define("user-finalize", async (request) => {
   const questionsAnswersWiring = JSON.parse(JSON.stringify(require('./tutorialTemplates/wiringQuestionsAnswers.json')));
   const pollsQuestionsWiring = JSON.parse(JSON.stringify(require('./tutorialTemplates/wiringPollsQuestions.json')));
 
-  const { email, password } = request.params;
-  //TODO - return this line when not testing
-  //if ((await getUserEmailStatus(email)).status != 200) return getStatusResponseObj(400, "Email missing or was not confirmed");
-  //TODO remove after test
-  await Parse.User.signUp(email, password, {'email': email});
+  const { email } = request.params;
+  if ((await getUserEmailStatus(email)).status != 200) return getStatusResponseObj(400, "Email missing or was not confirmed");
+  //TODO uncomment for testing
+  //await Parse.User.signUp(email, password, {'email': email});
   
   const user = await findObject("User", "email", email);
   
-  //TODO remove after test
-  user.set({"emailVerified": true});
-  await user.save(null, { "useMasterKey": true });
+  //TODO uncomment for testing
+  //user.set({"emailVerified": true});
+  //await user.save(null, { "useMasterKey": true });
 
   //generate sections for tables naming: email before @ sign and base64 of whole email
   const tablesFirstPartName = email.split("@")[0].replace(/\.+/g,'');
