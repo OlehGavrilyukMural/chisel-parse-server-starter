@@ -88,7 +88,7 @@ Parse.Cloud.define("poll", async (request) => {
   }
 
   const session = await (new Parse.Query("PollSession"))
-    .equalTo("isActive", false)
+    .equalTo("isActive", true)
     .equalTo("boardId", boardId)
     .first({ useMasterKey: true });
   if (!session) {
