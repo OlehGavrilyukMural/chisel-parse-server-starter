@@ -63,7 +63,7 @@ Parse.Cloud.define("poll-start", async (request) => {
     return getStatusResponseObj(400, "Poll Session is already running for this board");
   }
   const userModels = await getPollModels(user);
-  const polls = await getObjects("tableName", userModels, null, [{ key: "objectId", value: "MS2UldNvyW" }]);
+  const polls = await getObjects("tableName", userModels, null, [{ key: "objectId", value: pollId }]);
 
   if (!polls.length) return getStatusResponseObj(404, "No pollId found");
 
