@@ -116,9 +116,9 @@ Parse.Cloud.define("polls", async (request) => {
   if (authUser.status != 200) return authUser;
   const user = authUser.payload;
   const userModels = await getPollModels(user);  
-  const polls = await getObjects("tableName", userModels, getFullPollInclude(), [{ key: 't__status', value: 'Published' }]);
-  polls.concat(await getObjects("tableName", userModels, getFullPollInclude(), [{ key: 't__status', value: 'Updated' }]));
-
+  let polls = await getObjects("tableName", userModels, getFullPollInclude(), [{ key: 't__status', value: 'Published' }]);
+  polls = polls.concat(await getObjects("tableName", userModels, getFullPollInclude(), [{ key: 't__status', value: 'Updated' }]));
+  
   return polls;
 });
 
