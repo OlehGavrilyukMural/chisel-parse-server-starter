@@ -122,6 +122,38 @@ Parse.Cloud.define("polls", async (request) => {
   return polls;
 });
 
+Parse.Cloud.define("answers-set", async (request) => {
+  const { boardId, poll, user, mural } = request.params;
+  if (!boardId || !poll || !user || !mural) return getStatusResponseObj(400, "Bad request");
+  
+  const pollSession = (await getObjectQuery("Answers", null, [
+    {
+      key: "boardId",
+      value: boardId,
+    },
+    {
+      key: "isActive",
+      value: true,
+    },
+  ]));
+
+  if (!pollSession.length == 0) return getStatusResponseObj(404, "No such active poll on board");
+
+  const answer = getCustomParseObject("Answer");
+  answer.set({
+    "pollSessionId": pollSession[0].id, 
+    "pollSession": pollSession[0],
+    "user": user,
+    "mural": mural,
+    "score": score,
+  });
+
+  answer.save(null, {useMasterKey: true});
+
+  return getStatusResponseObj(200, "Success");
+});
+
+
 Parse.Cloud.define("user-finalize", async (request) => {
 
   //Here is a strange situation with caching. 
