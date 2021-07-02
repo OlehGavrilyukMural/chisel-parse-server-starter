@@ -124,7 +124,7 @@ Parse.Cloud.define("polls", async (request) => {
 
 Parse.Cloud.define("answers-set", async (request) => {
   const { boardId, poll, user, mural } = request.params;
-  if (!boardId || !poll || !user || !mural) return getStatusResponseObj(400, "Bad request");
+  if (!boardId || !poll || !user || !mural || !user.username || !poll.objectId) return getStatusResponseObj(400, "Bad request");
   
   const pollSession = (await getObjectQuery("PollSession", null, [
     {
@@ -137,18 +137,18 @@ Parse.Cloud.define("answers-set", async (request) => {
     },
   ]));
 
-  if (pollSession.length == 0 || pollSession[0].id !== poll.objectId) return getStatusResponseObj(404, "No such active poll on board");
-
+  if (pollSession.length == 0 || pollSession[0].get("pollId") !== poll.objectId) return getStatusResponseObj(404, "No such active poll on board");
   const answer = getCustomParseObject("Answer");
   answer.set({
     "pollSessionId": pollSession[0].id, 
     "pollSession": pollSession[0].toPointer(),
+    "poll": poll,
     "user": user,
+    "username": user.username,
     "mural": mural,
-    "score": request.params.score,
+    "score": request.params.score | 0,
   });
-
-  answer.save(null, {useMasterKey: true});
+  await answer.save(null, {useMasterKey: true});
 
   return getStatusResponseObj(200, "Success");
 });
