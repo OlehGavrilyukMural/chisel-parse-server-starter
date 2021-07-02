@@ -122,6 +122,48 @@ Parse.Cloud.define("polls", async (request) => {
   return polls;
 });
 
+Parse.Cloud.define("answers-started", async (request) => {
+  const { boardId, user, mural } = request.params;
+  if (!boardId || !user || !mural || !user.username) return getStatusResponseObj(400, "Bad request");
+  
+  const pollSession = (await getObjectQuery("PollSession", null, [
+    {
+      key: "boardId",
+      value: boardId,
+    },
+    {
+      key: "isActive",
+      value: true,
+    },
+  ]));
+  if (pollSession.length == 0) return getStatusResponseObj(404, "No such active poll on board");
+
+  const isAnswerSubmitted = (await getObjectQuery(
+    "Answer", 
+    null, 
+    [
+      { key: "username", value: user.username},
+      { key: "pollSessionId", value: pollSession[0].id},
+    ]
+  )).length > 0;
+  if (isAnswerSubmitted) return getStatusResponseObj(409, "Poll from user was already started.");
+
+  const answer = getCustomParseObject("Answer");
+  answer.set({
+    "pollSessionId": pollSession[0].id, 
+    "pollSession": pollSession[0].toPointer(),
+    "poll": {},
+    "user": user,
+    "username": user.username,
+    "mural": mural,
+    "score": request.params.score | 0,
+    "pollFinished": false,
+  });
+  await answer.save(null, {useMasterKey: true});
+
+  return getStatusResponseObj(200, "Success");
+});
+
 Parse.Cloud.define("answers-set", async (request) => {
   const { boardId, poll, user, mural } = request.params;
   if (!boardId || !poll || !user || !mural || !user.username || !poll.objectId) return getStatusResponseObj(400, "Bad request");
@@ -138,21 +180,53 @@ Parse.Cloud.define("answers-set", async (request) => {
   ]));
 
   if (pollSession.length == 0 || pollSession[0].get("pollId") !== poll.objectId) return getStatusResponseObj(404, "No such active poll on board");
-  const answer = getCustomParseObject("Answer");
-  answer.set({
-    "pollSessionId": pollSession[0].id, 
-    "pollSession": pollSession[0].toPointer(),
+  //Check user has already answered
+  const isAnswerSubmitted = (await getObjectQuery(
+    "Answer", 
+    null, 
+    [
+      { key: "username", value: user.username},
+      { key: "pollSessionId", value: pollSession[0].id},
+      { key: "pollFinished", value: true},
+    ]
+  )).length > 0;
+  if (isAnswerSubmitted) return getStatusResponseObj(409, "Answer from user was already provided.");
+  //Checking user has no started poll answering
+  const answerStarted = (await getObjectQuery(
+    "Answer", 
+    null, 
+    [
+      { key: "pollSessionId", value: pollSession[0].id},
+      { key: "username", value: user.username},
+      { key: "pollFinished", value: false},
+    ]
+  ));
+  if (answerStarted.length == 0) {
+    //Writing new answer if no previous state
+    const answer = getCustomParseObject("Answer");
+    answer.set({
+      "pollSessionId": pollSession[0].id, 
+      "pollSession": pollSession[0].toPointer(),
+      "poll": poll,
+      "user": user,
+      "username": user.username,
+      "mural": mural,
+      "score": request.params.score | 0,
+      "pollFinished": true,
+    });
+    await answer.save(null, {useMasterKey: true});
+
+    return getStatusResponseObj(200, "Success");
+  }
+  //If start was found - updating with poll obj results
+  answerStarted[0].save({ 
     "poll": poll,
-    "user": user,
-    "username": user.username,
-    "mural": mural,
     "score": request.params.score | 0,
-  });
-  await answer.save(null, {useMasterKey: true});
+    "pollFinished": true,
+  }, { useMasterKey: true });
 
   return getStatusResponseObj(200, "Success");
 });
-
 
 Parse.Cloud.define("user-finalize", async (request) => {
 
