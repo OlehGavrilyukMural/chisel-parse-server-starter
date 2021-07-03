@@ -164,6 +164,29 @@ Parse.Cloud.define("answers-started", async (request) => {
   return getStatusResponseObj(200, "Success");
 });
 
+Parse.Cloud.define("answers", async (request) => {
+  const authUser = await getSessionTokenUser(request);
+
+  const { boardId } = request.params;
+  if (!boardId) {
+    return getStatusResponseObj(406, "Required parameters not provided.");
+  }
+
+  const session = await (new Parse.Query("PollSession"))
+    .equalTo("isActive", true)
+    .equalTo("boardId", boardId)
+    .first({ useMasterKey: true });
+  if (!session) {
+    return getStatusResponseObj(400, "Wrong boardId or no active session");
+  }
+  const sessionId = session.id;
+  const answers = await (new Parse.Query("Answer"))
+    .equalTo("pollSessionId", sessionId)
+    .find({ useMasterKey: true });
+
+  return answers;
+});
+
 Parse.Cloud.define("answers-set", async (request) => {
   const { boardId, poll, user, mural } = request.params;
   if (!boardId || !poll || !user || !mural || !user.username || !poll.objectId) return getStatusResponseObj(400, "Bad request");
