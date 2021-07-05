@@ -9,6 +9,13 @@ Parse.Cloud.define("user-status", async (request) => {
   return await getUserEmailStatus(email);
 });
 
+Parse.Cloud.define("user-session", async (request) => {
+  const authUser = await getSessionTokenUser(request);
+  if (authUser.status != 200) return getStatusResponseObj(400, "Session is not valid");
+
+  return getStatusResponseObj(200, "Valid session");
+})
+
 //Currently parse server stores email as username, so no username exists
 Parse.Cloud.define("user-register", async (request) => {
   const { email, password, username } = request.params;
@@ -375,8 +382,6 @@ const getUserEmailStatus = async (email) => {
 const getSessionTokenUser = async (request) => {
 
   const sessionToken = request.headers['x-parse-session-token'];
-  console.log(JSON.stringify(request));
-  console.log(sessionToken);
   if (!sessionToken)
     return getStatusResponseObj(403, "User header required");
 
